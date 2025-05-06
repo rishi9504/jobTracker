@@ -28,15 +28,41 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+
+# In Django, `AUTH_USER_MODEL` is a setting that specifies the custom user model to use for authentication.
+
+# By setting `AUTH_USER_MODEL = "users.User"`, you're telling Django to use a custom user model named `User` located in the `users` app instead of the default `User` model provided by Django.
+
+# This allows you to customize the user model to fit your specific needs, such as adding additional fields or modifying the existing ones.
+
+# In your case, since you have `users` listed as an installed app in your `INSTALLED_APPS` setting, Django will look for a `User` model in the `users` app and use it as the authentication model.
+
+# This setting is commonly used when you want to add custom fields to the user model, such as profile information, or when you want to use a different authentication backend.
+
+# For example, you might have a `models.py` file in your `users` app that defines a custom `User` model like this:
+# ```python
+# from django.contrib.auth.models import AbstractUser
+
+# class User(AbstractUser):
+#     profile_picture = models.ImageField(upload_to='profile_pictures')
+#     bio = models.TextField()
+# ```
+# By setting `AUTH_USER_MODEL` to `"users.User"`, you're telling Django to use this custom `User` model for authentication instead of the default one.
+
+
+
 # Application definition
 
 INSTALLED_APPS = [
+    
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "apps.users",
+    "apps.jobs",
 ]
 
 MIDDLEWARE = [
@@ -79,6 +105,7 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = "users.User"
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
