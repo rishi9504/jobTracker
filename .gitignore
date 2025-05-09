@@ -1,8 +1,1 @@
-venv/*
-apps/users/__pycache__/*
-config/__pycache__/*
-apps/jobs/__pycache__/*
-apps/jobs/migrations/__pycache__/*
-apps/users/migrations/__pycache__/*
 db.sqlite3
-apps/users/adapters/__pycache__/*
