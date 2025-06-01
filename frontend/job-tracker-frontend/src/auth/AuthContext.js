@@ -1,59 +1,98 @@
-import { createContext, useState, useEffect } from "react";
-import {jwtDecode} from "jwt-decode";
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 
-const AuthContext = createContext();
+export const AuthContext = createContext(null);
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: 'http://127.0.0.1:8000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 export const AuthProvider = ({ children }) => {
-  const [authTokens, setAuthTokens] = useState(() =>
-    localStorage.getItem("authTokens") ? JSON.parse(localStorage.getItem("authTokens")) : null
-  );
-  const [user, setUser] = useState(() =>
-    authTokens ? jwtDecode(authTokens.access) : null
-  );
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const loginUser = async (username, password) => {
-    const response = await fetch("http://localhost:8000/api/auth/login/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
+  useEffect(() => {
+    // Check if user is logged in by verifying the token
+    const token = localStorage.getItem('access_token');
+    const userInfo = localStorage.getItem('user_info');
+    
+    if (token && userInfo) {
+      setUser(JSON.parse(userInfo));
+      // Set default authorization header
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    setLoading(false);
+  }, []);
 
-    const data = await response.json();
-    if (response.ok) {
-      setAuthTokens(data);
-      setUser(jwtDecode(data.access));
-      localStorage.setItem("authTokens", JSON.stringify(data));
+  const login = async (identifier, password) => {
+    try {
+      const response = await api.post('/auth/login/', {
+        identifier,
+        password
+      });
+
+      const { data } = response;
+      localStorage.setItem('access_token', data.access);
+      localStorage.setItem('refresh_token', data.refresh);
+      
+      // Store user info
+      const userInfo = {
+        email: data.email,
+        username: data.username
+      };
+      localStorage.setItem('user_info', JSON.stringify(userInfo));
+      
+      // Set default authorization header
+      api.defaults.headers.common['Authorization'] = `Bearer ${data.access}`;
+      
+      setUser(userInfo);
       return true;
-    } else {
+    } catch (error) {
+      console.error('Login error:', error.response?.data || error.message);
       return false;
     }
   };
 
-  const logoutUser = async () => {
-    if (authTokens?.refresh) {
-      await fetch("http://localhost:8000/api/auth/logout/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authTokens.access}`,
-        },
-        body: JSON.stringify({ refresh: authTokens.refresh }),
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('refresh_token');
+      await api.post('/auth/logout/', { 
+        refresh_token: token 
       });
+    } catch (error) {
+      console.error('Logout error:', error.response?.data || error.message);
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_info');
+      // Remove default authorization header
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
     }
-    setAuthTokens(null);
-    setUser(null);
-    localStorage.removeItem("authTokens");
-    window.location.href = "/login";
   };
 
-  const contextData = {
+  const value = {
     user,
-    authTokens,
-    loginUser,
-    logoutUser,
+    login,
+    logout,
+    loading
   };
 
-  return <AuthContext.Provider value={contextData}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 };
 
-export default AuthContext;
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

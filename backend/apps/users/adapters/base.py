@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser
 
 class IAuthAdapter(ABC):
     @abstractmethod
-    def authenticate(self, email: str, password: str) -> dict:
+    def authenticate(self, identifier: str, password: str) -> dict:
         pass
 
     @abstractmethod
