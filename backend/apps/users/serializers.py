@@ -15,5 +15,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField()
+    identifier = serializers.CharField(help_text='Username or Email')
+    password = serializers.CharField(write_only=True)
+
+    def validate_identifier(self, value):
+        # Check if user exists with either username or email
+        try:
+            User.objects.get(username=value)
+        except User.DoesNotExist:
+            try:
+                User.objects.get(email=value)
+            except User.DoesNotExist:
+                raise serializers.ValidationError('No user found with this username or email')
+        return value
