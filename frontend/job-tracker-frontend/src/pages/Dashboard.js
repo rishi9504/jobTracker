@@ -22,6 +22,60 @@ const Dashboard = () => {
     notes: ''
   });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Create axios instance with default config
+  const api = axios.create({
+    baseURL: 'http://127.0.0.1:8000/api',
+  });
+
+  // Add request interceptor
+  api.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add response interceptor
+  api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
+
+      // If error is 401 and we haven't tried to refresh token yet
+      if (error.response.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          const refreshToken = localStorage.getItem('refresh_token');
+          const response = await axios.post('http://127.0.0.1:8000/api/token/refresh/', {
+            refresh: refreshToken
+          });
+
+          const { access } = response.data;
+          localStorage.setItem('access_token', access);
+
+          // Retry the original request with new token
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          // If refresh token is invalid, logout user
+          await logout();
+          navigate('/login');
+          return Promise.reject(refreshError);
+        }
+      }
+
+      return Promise.reject(error);
+    }
+  );
 
   useEffect(() => {
     fetchJobs();
@@ -29,26 +83,26 @@ const Dashboard = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/jobs/', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
+      setIsLoading(true);
+      const response = await api.get('/jobs/');
       setJobs(response.data);
+      setError('');
     } catch (error) {
       console.error('Error fetching jobs:', error);
-      setError('Failed to fetch jobs');
+      setError('Failed to fetch jobs. Please try again.');
+      if (error.response?.status === 401) {
+        await logout();
+        navigate('/login');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleAddJob = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/jobs/', newJob, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
+      const response = await api.post('/jobs/', newJob);
       setJobs([...jobs, response.data]);
       setShowAddModal(false);
       setNewJob({
@@ -60,41 +114,36 @@ const Dashboard = () => {
         remote: false,
         notes: ''
       });
+      setError('');
     } catch (error) {
       console.error('Error adding job:', error);
-      setError('Failed to add job');
+      setError('Failed to add job. Please try again.');
     }
   };
 
   const handleEditJob = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(`http://127.0.0.1:8000/api/jobs/${selectedJob.id}/`, selectedJob, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
+      const response = await api.put(`/jobs/${selectedJob.id}/`, selectedJob);
       setJobs(jobs.map(job => job.id === selectedJob.id ? response.data : job));
       setShowEditModal(false);
       setSelectedJob(null);
+      setError('');
     } catch (error) {
       console.error('Error updating job:', error);
-      setError('Failed to update job');
+      setError('Failed to update job. Please try again.');
     }
   };
 
   const handleDeleteJob = async (jobId) => {
     if (window.confirm('Are you sure you want to delete this job?')) {
       try {
-        await axios.delete(`http://127.0.0.1:8000/api/jobs/${jobId}/`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          },
-        });
+        await api.delete(`/jobs/${jobId}/`);
         setJobs(jobs.filter(job => job.id !== jobId));
+        setError('');
       } catch (error) {
         console.error('Error deleting job:', error);
-        setError('Failed to delete job');
+        setError('Failed to delete job. Please try again.');
       }
     }
   };
@@ -114,7 +163,7 @@ const Dashboard = () => {
     setShowDetailsModal(true);
   };
 
-  const JobForm = ({ job, onSubmit, title, submitText }) => (
+  const JobForm = ({ job, onSubmit, submitText }) => (
     <form onSubmit={onSubmit}>
       <div className="form-group">
         <label>Company</label>
@@ -202,50 +251,49 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
+    <div className="dashboard-container">
+      <div className="dashboard-header">
         <div className="header-content">
-          <h1>Job Tracker</h1>
-          <div className="user-section">
-            <span className="username">Welcome, {user?.username || 'User'}!</span>
-            <button onClick={handleLogout} className="logout-button">
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="dashboard-content">
-        <div className="jobs-header">
-          <h2>Your Job Applications</h2>
+          <h1>Job Applications</h1>
           <button className="add-job-button" onClick={() => setShowAddModal(true)}>
+            <i className="fas fa-plus"></i>
             Add New Job
           </button>
         </div>
+      </div>
 
+      <div className="dashboard-content">
         {error && <div className="error-message">{error}</div>}
-
-        <div className="jobs-list">
-          {jobs.map((job) => (
-            <div key={job.id} className="job-card" onClick={() => openDetailsModal(job)}>
-              <h3>{job.company}</h3>
-              <p className="position">{job.position}</p>
-              <p className="status">Status: {job.status}</p>
-              <p className="date">Applied: {new Date(job.applied_date).toLocaleDateString()}</p>
-              <div className="job-actions" onClick={e => e.stopPropagation()}>
-                <button className="edit-button" onClick={() => openEditModal(job)}>
-                  Edit
-                </button>
-                <button className="delete-button" onClick={() => handleDeleteJob(job.id)}>
-                  Delete
-                </button>
+        {isLoading ? (
+          <div className="loading-spinner">
+            <i className="fas fa-spinner fa-spin"></i>
+            <span>Loading jobs...</span>
+          </div>
+        ) : (
+          <div className="jobs-list">
+            {jobs.map((job) => (
+              <div key={job.id} className="job-card" onClick={() => openDetailsModal(job)}>
+                <h3>{job.company}</h3>
+                <p className="position">{job.position}</p>
+                <p className="status">Status: {job.status}</p>
+                <p className="date">Applied: {new Date(job.applied_date).toLocaleDateString()}</p>
+                <div className="job-actions" onClick={e => e.stopPropagation()}>
+                  <button className="edit-button" onClick={() => openEditModal(job)}>
+                    <i className="fas fa-edit"></i>
+                    Edit
+                  </button>
+                  <button className="delete-button" onClick={() => handleDeleteJob(job.id)}>
+                    <i className="fas fa-trash"></i>
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-          {jobs.length === 0 && (
-            <p className="no-jobs">No job applications yet. Start by adding one!</p>
-          )}
-        </div>
+            ))}
+            {jobs.length === 0 && (
+              <p className="no-jobs">No job applications yet. Start by adding one!</p>
+            )}
+          </div>
+        )}
 
         {showAddModal && (
           <div className="modal">
@@ -336,7 +384,7 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };

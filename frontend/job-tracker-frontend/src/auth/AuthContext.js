@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (identifier, password) => {
     try {
-      const response = await api.post('/auth/login/', {
+      const response = await api.post('/users/login/', {
         identifier,
         password
       });
@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       const token = localStorage.getItem('refresh_token');
-      await api.post('/auth/logout/', { 
+      await api.post('/users/logout/', { 
         refresh_token: token 
       });
     } catch (error) {
