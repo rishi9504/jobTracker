@@ -99,10 +99,10 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddJob = async (e) => {
+  const handleAddJob = async (e, formData) => {
     e.preventDefault();
     try {
-      const response = await api.post('/jobs/', newJob);
+      const response = await api.post('/jobs/', formData);
       setJobs([...jobs, response.data]);
       setShowAddModal(false);
       setNewJob({
@@ -121,11 +121,11 @@ const Dashboard = () => {
     }
   };
 
-  const handleEditJob = async (e) => {
+  const handleEditJob = async (e, formData) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/jobs/${selectedJob.id}/`, selectedJob);
-      setJobs(jobs.map(job => job.id === selectedJob.id ? response.data : job));
+      const response = await api.put(`/jobs/${formData.id}/`, formData);
+      setJobs(jobs.map(job => job.id === formData.id ? response.data : job));
       setShowEditModal(false);
       setSelectedJob(null);
       setError('');
@@ -163,92 +163,124 @@ const Dashboard = () => {
     setShowDetailsModal(true);
   };
 
-  const JobForm = ({ job, onSubmit, submitText }) => (
-    <form onSubmit={onSubmit}>
-      <div className="form-group">
-        <label>Company</label>
-        <input
-          type="text"
-          value={job.company}
-          onChange={(e) => job === newJob ? 
-            setNewJob({...newJob, company: e.target.value}) : 
-            setSelectedJob({...selectedJob, company: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>Position</label>
-        <input
-          type="text"
-          value={job.position}
-          onChange={(e) => job === newJob ? 
-            setNewJob({...newJob, position: e.target.value}) : 
-            setSelectedJob({...selectedJob, position: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>Description</label>
-        <textarea
-          value={job.description}
-          onChange={(e) => job === newJob ? 
-            setNewJob({...newJob, description: e.target.value}) : 
-            setSelectedJob({...selectedJob, description: e.target.value})}
-        />
-      </div>
-      <div className="form-group">
-        <label>Salary</label>
-        <input
-          type="text"
-          value={job.salary}
-          onChange={(e) => job === newJob ? 
-            setNewJob({...newJob, salary: e.target.value}) : 
-            setSelectedJob({...selectedJob, salary: e.target.value})}
-        />
-      </div>
-      <div className="form-group">
-        <label>Location</label>
-        <input
-          type="text"
-          value={job.location}
-          onChange={(e) => job === newJob ? 
-            setNewJob({...newJob, location: e.target.value}) : 
-            setSelectedJob({...selectedJob, location: e.target.value})}
-        />
-      </div>
-      <div className="form-group">
-        <label>
+  const handleInputChange = (field, value, isNewJob = true) => {
+    if (isNewJob) {
+      const updatedJob = { ...newJob };
+      updatedJob[field] = value;
+      setNewJob(updatedJob);
+    } else {
+      const updatedJob = { ...selectedJob };
+      updatedJob[field] = value;
+      setSelectedJob(updatedJob);
+    }
+  };
+
+  const JobForm = ({ job, onSubmit, submitText }) => {
+    const [formData, setFormData] = useState(job);
+
+    useEffect(() => {
+      setFormData(job);
+    }, [job]);
+
+    const handleChange = (e) => {
+      const { name, value, type, checked } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      onSubmit(e, formData);
+    };
+
+    return (
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Company</label>
           <input
-            type="checkbox"
-            checked={job.remote}
-            onChange={(e) => job === newJob ? 
-              setNewJob({...newJob, remote: e.target.checked}) : 
-              setSelectedJob({...selectedJob, remote: e.target.checked})}
+            type="text"
+            name="company"
+            value={formData.company}
+            onChange={handleChange}
+            required
+            placeholder="Enter company name"
           />
-          Remote
-        </label>
-      </div>
-      <div className="form-group">
-        <label>Notes</label>
-        <textarea
-          value={job.notes}
-          onChange={(e) => job === newJob ? 
-            setNewJob({...newJob, notes: e.target.value}) : 
-            setSelectedJob({...selectedJob, notes: e.target.value})}
-        />
-      </div>
-      <div className="modal-actions">
-        <button type="submit" className="submit-button">{submitText}</button>
-        <button 
-          type="button" 
-          className="cancel-button" 
-          onClick={() => job === newJob ? setShowAddModal(false) : setShowEditModal(false)}
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
+        </div>
+        <div className="form-group">
+          <label>Position</label>
+          <input
+            type="text"
+            name="position"
+            value={formData.position}
+            onChange={handleChange}
+            required
+            placeholder="Enter job position"
+          />
+        </div>
+        <div className="form-group">
+          <label>Description</label>
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            placeholder="Enter job description"
+          />
+        </div>
+        <div className="form-group">
+          <label>Salary</label>
+          <input
+            type="text"
+            name="salary"
+            value={formData.salary}
+            onChange={handleChange}
+            placeholder="Enter salary information"
+          />
+        </div>
+        <div className="form-group">
+          <label>Location</label>
+          <input
+            type="text"
+            name="location"
+            value={formData.location}
+            onChange={handleChange}
+            placeholder="Enter job location"
+          />
+        </div>
+        <div className="form-group">
+          <label>
+            <input
+              type="checkbox"
+              name="remote"
+              checked={formData.remote}
+              onChange={handleChange}
+            />
+            Remote
+          </label>
+        </div>
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            placeholder="Enter any additional notes"
+          />
+        </div>
+        <div className="modal-actions">
+          <button type="submit" className="submit-button">{submitText}</button>
+          <button 
+            type="button" 
+            className="cancel-button" 
+            onClick={() => job === newJob ? setShowAddModal(false) : setShowEditModal(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  };
 
   return (
     <div className="dashboard-container">
