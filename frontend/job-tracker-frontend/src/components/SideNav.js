@@ -1,8 +1,17 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import './SideNav.css';
 
 const SideNav = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <nav className="sidenav">
       <div className="nav-section">
@@ -67,6 +76,13 @@ const SideNav = () => {
           <i className="fas fa-cog"></i>
           Preferences
         </NavLink>
+      </div>
+
+      <div className="nav-section logout-section">
+        <button onClick={handleLogout} className="logout-button">
+          <i className="fas fa-sign-out-alt"></i>
+          Logout
+        </button>
       </div>
     </nav>
   );
