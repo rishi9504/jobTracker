@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../auth/AuthContext';
 import './Resumes.css';
+import { useNavigate } from 'react-router-dom';
+
 
 const Resumes = () => {
   const { user } = useAuth();
@@ -10,6 +12,7 @@ const Resumes = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedResume, setSelectedResume] = useState(null);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [newResume, setNewResume] = useState({
     title: '',
@@ -123,39 +126,11 @@ const Resumes = () => {
   };
 
   const handleEditResume = async (e, formData) => {
-    e.preventDefault();
-    setError('');
     
-    const submitData = new FormData();
-    
-    // Append all fields except file, fileName, and file_url
-    Object.keys(formData).forEach(key => {
-      if (key !== 'file' && key !== 'fileName' && key !== 'file_url') {
-        submitData.append(key, formData[key]);
-      }
-    });
-    
-    // Only append file if a new one is selected
-    if (formData.file instanceof File) {
-      submitData.append('file', formData.file);
-    }
+    navigate('/resume-editor/');
 
-    try {
-      const response = await api.put(`/users/resumes/${formData.id}/`, submitData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      setResumes(resumes.map(resume => 
-        resume.id === formData.id ? response.data : resume
-      ));
-      setShowEditModal(false);
-      setSelectedResume(null);
-    } catch (error) {
-      console.error('Error updating resume:', error.response || error);
-      setError(error.response?.data?.detail || 'Failed to update resume. Please try again.');
-    }
+    // e.preventDefault();
+    // setError('');
   };
 
   const handleDeleteResume = async (id) => {
@@ -352,10 +327,11 @@ const Resumes = () => {
                   </a>
                   <button 
                     className="edit-button"
-                    onClick={() => {
-                      setSelectedResume(resume);
-                      setShowEditModal(true);
-                    }}
+                    // onClick={() => {
+                    //   setSelectedResume(resume);
+                    //   setShowEditModal(true);
+                    // }}
+                    onClick={() => handleEditResume(resume)}
                   >
                     <i className="fas fa-edit"></i>
                     Edit
