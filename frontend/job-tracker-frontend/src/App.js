@@ -6,6 +6,7 @@ import Resumes from "./pages/Resumes";
 import PrivateRoute from "./auth/PrivateRoute";
 import { AuthProvider } from "./auth/AuthContext";
 import Layout from "./components/Layout";
+import ResumeEditor from "./components/resume/ResumeEditor";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/resumes" element={<Resumes />} />
+            <Route path="/resume-editor" element={<ResumeEditor />} />
             <Route
               path="/dashboard"
               element={
